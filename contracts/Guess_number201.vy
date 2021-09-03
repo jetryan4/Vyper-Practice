@@ -2,6 +2,16 @@
 
 #Contract Guess Number
 
+event Game_created:
+    owner: indexed(address)
+    game_index: uint256
+    time: uint256
+
+event Game_solved:
+    solver: indexed(address)
+    game_index: uint256
+    time: uint256
+
 struct game:
     game_owner: address
     secret_number: uint256
@@ -22,7 +32,7 @@ def __init__():
 
 @external
 @payable
-def create_game(_secret_number: uint256) -> uint256:
+def create_game(_secret_number: uint256) -> bool:
     assert msg.value == 10*(10**18), "You should pay 10 ether to create a game"
     assert (_secret_number >= 0) and (_secret_number <= 100), "The secret number must be 0-100"
     self.game_index[self.current_id].game_owner = msg.sender
@@ -31,12 +41,18 @@ def create_game(_secret_number: uint256) -> uint256:
     self.game_index[self.current_id].guess_count = 0
     self.game_index[self.current_id].is_active = True
     self.current_id = self.current_id + 1
-    return self.current_id - 1
+    log Game_created(msg.sender, self.current_id - 1, block.timestamp)
+    return True
 
 @external
 @view
 def get_game_balance(_game_id: uint256) -> uint256:
     return self.game_index[_game_id].game_balance
+
+@external
+@view
+def get_game_guesses(_game_id: uint256) -> uint256:
+    return self.game_index[_game_id].guess_count
 
 @external
 @view
@@ -56,6 +72,7 @@ def play(_game_id: uint256, _guessed_number: uint256) -> bool:
         send(self.contract_owner, self.game_index[_game_id].game_balance /100)
         self.game_index[_game_id].game_balance = 0
         self.game_index[_game_id].is_active = False
+        log Game_solved(msg.sender, _game_id, block.timestamp)
     else:
         if self.game_index[_game_id].guess_count == 10:
             send(self.game_index[_game_id].game_owner,(self.game_index[_game_id].game_balance *99)/100)
